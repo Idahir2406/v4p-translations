@@ -5,7 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 
 const allowedOrigins = [
   'http://localhost:5173',
-
+  'http://46.225.229.161:5173'
 ];
 
 async function bootstrap() {
