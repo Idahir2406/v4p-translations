@@ -1,10 +1,21 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
 
 import { TranslationTablesService } from "./translation-tables.service";
 import { CreateTranslationTableDto } from "./dto/create-translation-table.dto";
 import { UpdateTranslationTableDto } from "./dto/update-translation-table.dto";
+import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
 
 @Controller("translation-tables")
+@UseGuards(JwtAuthGuard)
 export class TranslationTablesController {
   constructor(
     private readonly translationTablesService: TranslationTablesService,

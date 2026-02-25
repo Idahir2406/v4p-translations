@@ -1,7 +1,17 @@
-import { LanguagesIcon } from "lucide-react";
+import { LanguagesIcon, LogOutIcon } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Button } from "~/components/ui/button";
+import { authService } from "~/services/authService";
 import { TranslationsTable } from "../routes/translationTable";
 
 export function Welcome() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    authService.logout();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <main className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b bg-card/80 backdrop-blur-md">
@@ -16,6 +26,17 @@ export function Welcome() {
             <p className="text-xs text-muted-foreground">
               Panel de configuración de traducciones
             </p>
+          </div>
+          <div className="ml-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleLogout}
+              aria-label="Cerrar sesión"
+            >
+              <LogOutIcon className="mr-2 size-4" />
+              Cerrar sesión
+            </Button>
           </div>
         </div>
       </header>

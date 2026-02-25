@@ -1,9 +1,11 @@
-import { Controller, Get, Sse } from '@nestjs/common';
+import { Controller, Get, Sse, UseGuards } from '@nestjs/common';
 import { Observable, Subject } from 'rxjs';
 import { TranslationsService } from './translations.service';
 import { SseMessageEvent } from './translations.service';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('translations')
+@UseGuards(JwtAuthGuard)
 export class TranslationsController {
   constructor(private readonly translationsService: TranslationsService) {}
 

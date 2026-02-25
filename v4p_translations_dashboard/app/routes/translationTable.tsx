@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeftIcon, DatabaseIcon, LanguagesIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  DatabaseIcon,
+  LanguagesIcon,
+  LogOutIcon,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
   Table,
@@ -10,7 +15,8 @@ import {
   TableCell,
 } from "~/components/ui/table";
 import { Badge } from "~/components/ui/badge";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { useEffect } from "react";
 import { TranslateDialog } from "~/components/translate-dialog";
 import { CreateDialog } from "~/components/create-dialog";
 import { EditDialog } from "~/components/edit-dialog";
@@ -18,11 +24,16 @@ import { DeleteDialog } from "~/components/delete-dialog";
 import { translationsService } from "~/services/translationsService";
 import { managerService } from "~/services/managerService";
 import { TableContainer } from "~/components/table-container";
+import { authTokenStorage } from "~/lib/api";
+import { Button } from "~/components/ui/button";
+import { authService } from "~/services/authService";
 
 export const TranslationsTable = () => {
+  const token = authTokenStorage.get();
   const { data, isLoading } = useQuery({
     queryKey: ["translations-tables"],
     queryFn: () => translationsService.getAll(),
+    enabled: Boolean(token),
   });
 
   return (
@@ -120,22 +131,35 @@ export const TranslationsTable = () => {
 };
 
 export default function TranslationTablePage() {
+  const navigate = useNavigate();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
+  const token = authTokenStorage.get();
   const tableId = id ?? "";
   const lang = searchParams.get("lang") || undefined;
   const field = searchParams.get("field") || undefined;
 
+  const handleLogout = () => {
+    authService.logout();
+    navigate("/login", { replace: true });
+  };
+
+  useEffect(() => {
+    if (!token) {
+      navigate("/login", { replace: true });
+    }
+  }, [navigate, token]);
+
   const { data: filterOptions } = useQuery({
     queryKey: ["filter-options", tableId],
     queryFn: () => managerService.getFilterOptions(tableId),
-    enabled: Boolean(tableId),
+    enabled: Boolean(tableId && token),
   });
 
   const { data, isLoading } = useQuery({
     queryKey: ["translation-table", tableId, lang, field],
     queryFn: () => managerService.getTranslations({ id: tableId, lang, field }),
-    enabled: Boolean(tableId),
+    enabled: Boolean(tableId && token),
   });
 
   const tableName =
@@ -149,6 +173,10 @@ export default function TranslationTablePage() {
         </div>
       </main>
     );
+  }
+
+  if (!token) {
+    return null;
   }
 
   return (
@@ -173,6 +201,17 @@ export default function TranslationTablePage() {
             <div className="text-xs text-muted-foreground">
               Traducciones configuradas
             </div>
+          </div>
+          <div className="ml-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleLogout}
+              aria-label="Cerrar sesión"
+            >
+              <LogOutIcon className="mr-2 size-4" />
+              Cerrar sesión
+            </Button>
           </div>
         </div>
       </header>

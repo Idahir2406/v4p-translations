@@ -7,6 +7,7 @@ import { envs } from './config/envs';
 import { TranslationTablesModule } from './translation-tables/translation-tables.module';
 import { LanguagesModule } from './languages/languages.module';
 import { ManagerModule } from './manager/manager.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ManagerModule } from './manager/manager.module';
     TranslationTablesModule,
     LanguagesModule,
     ManagerModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

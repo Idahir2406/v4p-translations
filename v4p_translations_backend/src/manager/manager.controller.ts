@@ -7,13 +7,16 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  UseGuards,
 } from "@nestjs/common";
 
 import { ManagerService } from "./manager.service";
 import { GetTranslationsDto } from "./dto/get-translations.dto";
 import { UpdateTranslationDto } from "./dto/update-translation.dto";
+import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
 
 @Controller("manager")
+@UseGuards(JwtAuthGuard)
 export class ManagerController {
   constructor(private readonly managerService: ManagerService) {}
 
