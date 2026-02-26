@@ -10,5 +10,7 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().min(1),
   DB_DATABASE: z.string().min(1),
   DB_INITIAL: z.string().min(1),
+  BASE_URL: z.string().min(1),
+  CRON_TOKEN: z.string().min(1),
 });
 export const envs = envSchema.parse(process.env);

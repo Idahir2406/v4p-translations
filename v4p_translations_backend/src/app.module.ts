@@ -8,6 +8,8 @@ import { TranslationTablesModule } from './translation-tables/translation-tables
 import { LanguagesModule } from './languages/languages.module';
 import { ManagerModule } from './manager/manager.module';
 import { AuthModule } from './auth/auth.module';
+import { CronJobsService } from './common/services/cron-jobs/cron-jobs.service';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -25,8 +27,9 @@ import { AuthModule } from './auth/auth.module';
     LanguagesModule,
     ManagerModule,
     AuthModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, CronJobsService],
 })
 export class AppModule {}
