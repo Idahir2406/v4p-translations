@@ -7,10 +7,11 @@ import { Input } from "~/components/ui/input";
 import type { Route } from "./+types/login-page";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { authService } from "~/services/authService";
 import { authTokenStorage } from "~/lib/api";
+import { Eye, EyeOff } from "lucide-react";
 
 const formSchema = z.object({
   user: z.string().min(1, "El usuario es obligatorio"),
@@ -23,6 +24,7 @@ export const meta = ({}: Route.MetaArgs) => {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -47,6 +49,10 @@ export default function LoginPage() {
         message: "Credenciales inválidas",
       });
     }
+  };
+
+  const handleTogglePasswordVisibility = () => {
+    setShowPassword((prevValue) => !prevValue);
   };
 
   return (
@@ -82,14 +88,31 @@ export default function LoginPage() {
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Input
-                    {...field}
-                    id="password"
-                    aria-invalid={fieldState.invalid}
-                    placeholder="********"
-                    type="password"
-                    autoComplete="current-password"
-                  />
+                  <div className="relative">
+                    <Input
+                      {...field}
+                      id="password"
+                      aria-invalid={fieldState.invalid}
+                      placeholder="********"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      className="pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleTogglePasswordVisibility}
+                      aria-label={
+                        showPassword ? "Ocultar contrasena" : "Mostrar contrasena"
+                      }
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
