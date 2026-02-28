@@ -23,7 +23,7 @@ export class LanguagesService {
   }
 
   async findOne(id: string): Promise<Language> {
-    const entity = await this.languageRepository.findOneBy({ id });
+    const entity = await this.languageRepository.findOneBy({ code: id });
     if (!entity) {
       throw new NotFoundException(`Language con id '${id}' no encontrado`);
     }

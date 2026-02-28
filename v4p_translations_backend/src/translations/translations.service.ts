@@ -48,7 +48,7 @@ export class TranslationsService {
     this.deeplClient = new deepl.DeepLClient(envs.DEEPL_API_KEY);
   }
 
-  async handleTranslations() {
+  async handleTranslations(lang: string) {
     const usage = await this.getRemainingChars();
     this.logger.log(`Caracteres disponibles: ${usage}`);
 
@@ -75,7 +75,7 @@ export class TranslationsService {
         const result = await this.translateTable(
           table.table_name,
           column,
-          'en',
+          lang,
           remainingChars,
           table.identifier ?? "id",
           table.field_name ?? undefined,
@@ -84,7 +84,7 @@ export class TranslationsService {
         results.push({
           tableName: table.table_name,
           columnName: column,
-          lang: 'en',
+          lang: lang,
           status: result.status,
         });
         charsUsed += result.charsUsed;
@@ -94,7 +94,7 @@ export class TranslationsService {
     return { message: "Traducciones completadas", results, charsUsed };
   }
 
-  async handleTranslationsStream(subject: Subject<SseMessageEvent>): Promise<void> {
+  async handleTranslationsStream(subject: Subject<SseMessageEvent>, lang: string): Promise<void> {
     const emit: SseEmitter = (payload) => subject.next({ data: payload });
 
     try {
@@ -152,14 +152,14 @@ export class TranslationsService {
             message: `Iniciando ${table.table_name}.${column}`,
             tableName: table.table_name,
             columnName: column,
-            lang: 'en',
+            lang: lang,
             remainingChars,
           });
 
           const result = await this.translateTable(
             table.table_name,
             column,
-            'en',
+            lang,
             remainingChars,
             table.identifier ?? "id",
             table.field_name ?? undefined,
@@ -173,7 +173,7 @@ export class TranslationsService {
             message: `Finalizó ${table.table_name}.${column} con estado ${result.status}`,
             tableName: table.table_name,
             columnName: column,
-            lang: 'en',
+            lang: lang,
             status: result.status,
             charsUsed,
             remainingChars: usage - charsUsed,

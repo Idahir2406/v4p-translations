@@ -27,9 +27,12 @@ import { TableContainer } from "~/components/table-container";
 import { authTokenStorage } from "~/lib/api";
 import { Button } from "~/components/ui/button";
 import { authService } from "~/services/authService";
+import { LanguajeSelector } from "~/components/languajeSelector";
 
 export const TranslationsTable = () => {
   const token = authTokenStorage.get();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const lang = searchParams.get("lang") ?? "";
   const { data, isLoading } = useQuery({
     queryKey: ["translations-tables"],
     queryFn: () => translationsService.getAll(),

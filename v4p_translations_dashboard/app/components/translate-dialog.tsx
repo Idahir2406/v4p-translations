@@ -11,6 +11,8 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { API_URL } from "~/constants";
+import { useSearchParams } from "react-router";
+import { LanguajeSelector } from "./languajeSelector";
 
 interface LogEntry {
   type: "info" | "warn" | "error" | "progress" | "complete";
@@ -34,7 +36,8 @@ export const TranslateDialog = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
-
+  const [searchParams, setSearchParams] = useSearchParams();
+  const lang = searchParams.get("lang") ?? "en";
   useEffect(() => {
     const container = logsContainerRef.current;
     if (!container) return;
@@ -51,7 +54,7 @@ export const TranslateDialog = () => {
     setStatus("running");
     setLogs([]);
 
-    const es = new EventSource(`${API_URL}/translations/stream`);
+    const es = new EventSource(`${API_URL}/translations/stream?lang=${lang}`);
     eventSourceRef.current = es;
 
     es.onmessage = (event) => {
@@ -129,6 +132,7 @@ export const TranslateDialog = () => {
           </DialogDescription>
         </DialogHeader>
 
+        <LanguajeSelector value={lang} onChange={(value) => setSearchParams({ lang: value })} />
         <div
           ref={logsContainerRef}
           className="h-80 overflow-y-auto rounded-lg border bg-muted/30 p-3 font-mono text-xs leading-relaxed"

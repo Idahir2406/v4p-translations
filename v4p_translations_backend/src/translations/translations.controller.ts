@@ -1,4 +1,4 @@
-import { Controller, Get, Sse, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Sse, UseGuards } from '@nestjs/common';
 import { Observable, Subject } from 'rxjs';
 import { TranslationsService } from './translations.service';
 import { SseMessageEvent } from './translations.service';
@@ -10,14 +10,14 @@ export class TranslationsController {
   constructor(private readonly translationsService: TranslationsService) {}
 
   @Get('run')
-  runTranslations() {
-    return this.translationsService.handleTranslations();
+  runTranslations( @Query('lang') lang: string ) {
+    return this.translationsService.handleTranslations(lang);
   }
 
   @Sse('stream')
-  streamTranslations(): Observable<SseMessageEvent> {
+  streamTranslations( @Query('lang') lang: string ): Observable<SseMessageEvent> {
     const subject = new Subject<SseMessageEvent>();
-    void this.translationsService.handleTranslationsStream(subject);
+    void this.translationsService.handleTranslationsStream(subject, lang);
     return subject.asObservable();
   }
 }
