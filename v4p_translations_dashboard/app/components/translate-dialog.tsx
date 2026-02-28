@@ -13,6 +13,7 @@ import {
 import { API_URL } from "~/constants";
 import { useSearchParams } from "react-router";
 import { LanguajeSelector } from "./languajeSelector";
+import { authTokenStorage } from "~/lib/api";
 
 interface LogEntry {
   type: "info" | "warn" | "error" | "progress" | "complete";
@@ -51,10 +52,27 @@ export const TranslateDialog = () => {
   }, []);
 
   const handleStart = useCallback(() => {
+    const token = authTokenStorage.get();
+    if (!token) {
+      setStatus("error");
+      setLogs([
+        {
+          type: "error",
+          message: "Sesion expirada. Inicia sesion nuevamente.",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+      return;
+    }
+
     setStatus("running");
     setLogs([]);
 
-    const es = new EventSource(`${API_URL}/translations/stream?lang=${lang}`);
+    const streamUrl = new URL(`${API_URL}/translations/stream`);
+    streamUrl.searchParams.set("lang", lang);
+    streamUrl.searchParams.set("access_token", token);
+
+    const es = new EventSource(streamUrl.toString());
     eventSourceRef.current = es;
 
     es.onmessage = (event) => {
@@ -79,7 +97,7 @@ export const TranslateDialog = () => {
       es.close();
       setStatus((prev) => (prev === "running" ? "completed" : prev));
     };
-  }, []);
+  }, [lang]);
 
   const handleStop = useCallback(() => {
     eventSourceRef.current?.close();
