@@ -1,6 +1,5 @@
 
 
-import "tsconfig-paths/register";
 import { config } from "dotenv";
 import { DataSource, DataSourceOptions } from "typeorm";
 import { envs } from "src/config/envs";
