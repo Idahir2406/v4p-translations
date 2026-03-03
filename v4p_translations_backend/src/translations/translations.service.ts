@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Subject } from 'rxjs';
@@ -8,6 +8,8 @@ import { MysqlService } from 'src/common/services/mysql/mysql.service';
 import { envs } from 'src/config/envs';
 import { ClienteTranslation } from './entities/clientTranslations.entity';
 import { TranslationTable } from 'src/translation-tables/entities/translation-table.entity';
+import { Language } from 'src/languages/entities/language.entity';
+import { SchedulerRegistry } from '@nestjs/schedule';
 
 type StreamEventType = 'info' | 'warn' | 'progress' | 'error' | 'complete';
 
@@ -32,20 +34,62 @@ export interface SseMessageEvent {
 type SseEmitter = (payload: StreamPayload) => void;
 
 @Injectable()
-export class TranslationsService {
+export class TranslationsService implements OnModuleInit, OnModuleDestroy {
   private readonly deeplClient: deepl.DeepLClient;
   private readonly oneSecond = 1000;
   private readonly maxCharsPerBatch = 5000;
   private readonly logger = new Logger(TranslationsService.name);
+  private readonly cronIntervalName = 'translations-auto-run';
+  private readonly allowedCronIntervals = [15, 30, 60, 180, 360, 720, 1440];
+  private cronIntervalMinutes = 360;
 
   constructor(
+    private readonly schedulerRegistry: SchedulerRegistry,
     private readonly mysqlService: MysqlService,
     @InjectRepository(ClienteTranslation)
     private readonly clienteTranslationRepository: Repository<ClienteTranslation>,
     @InjectRepository(TranslationTable)
     private readonly translationTableRepository: Repository<TranslationTable>,
+    @InjectRepository(Language)
+    private readonly languageRepository: Repository<Language>,
   ) {
     this.deeplClient = new deepl.DeepLClient(envs.DEEPL_API_KEY);
+  }
+
+  onModuleInit() {
+    this.configureCronJob(this.cronIntervalMinutes);
+  }
+
+  onModuleDestroy() {
+    try {
+      const interval = this.schedulerRegistry.getInterval(
+        this.cronIntervalName,
+      ) as NodeJS.Timeout;
+      clearInterval(interval);
+      this.schedulerRegistry.deleteInterval(this.cronIntervalName);
+    } catch {
+      // Ignore if the interval does not exist.
+    }
+  }
+
+  getCronConfig() {
+    return {
+      intervalMinutes: this.cronIntervalMinutes,
+      cronExpression: this.buildCronExpression(this.cronIntervalMinutes),
+      allowedIntervals: this.allowedCronIntervals,
+    };
+  }
+
+  updateCronInterval(intervalMinutes: number) {
+    if (!this.allowedCronIntervals.includes(intervalMinutes)) {
+      throw new BadRequestException(
+        `Intervalo no permitido. Usa uno de: ${this.allowedCronIntervals.join(', ')}`,
+      );
+    }
+
+    this.cronIntervalMinutes = intervalMinutes;
+    this.configureCronJob(intervalMinutes);
+    return this.getCronConfig();
   }
 
   async handleTranslations(lang: string) {
@@ -92,6 +136,62 @@ export class TranslationsService {
     }
 
     return { message: "Traducciones completadas", results, charsUsed };
+  }
+
+  async handleTranslationsCron() {
+
+    const languages = await this.languageRepository.find({
+      where: { is_active: true, is_default: false },
+      order: { code: 'ASC' },
+    });
+
+    for (const language of languages) {
+      await this.handleTranslations(language.code);
+    }
+
+  }
+
+  private configureCronJob(intervalMinutes: number) {
+    const intervalMs = intervalMinutes * 60 * 1000;
+
+    try {
+      const previousInterval = this.schedulerRegistry.getInterval(
+        this.cronIntervalName,
+      ) as NodeJS.Timeout;
+      clearInterval(previousInterval);
+      this.schedulerRegistry.deleteInterval(this.cronIntervalName);
+    } catch {
+      // Ignore if the interval does not exist.
+    }
+
+    const intervalHandler = setInterval(() => {
+      void this.handleTranslationsCron().catch((error: unknown) => {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Error desconocido en cron';
+        this.logger.error(`Error en cron de traducciones: ${errorMessage}`);
+      });
+    }, intervalMs);
+
+    this.schedulerRegistry.addInterval(this.cronIntervalName, intervalHandler);
+    this.logger.log(
+      `Cron de traducciones configurado cada ${intervalMinutes} minutos (${this.buildCronExpression(
+        intervalMinutes,
+      )})`,
+    );
+  }
+
+  private buildCronExpression(intervalMinutes: number): string {
+    const expressionByInterval: Record<number, string> = {
+      15: 'cada 15 minutos',
+      30: 'cada 30 minutos',
+      60: 'cada 1 hora',
+      180: 'cada 3 horas',
+      360: 'cada 6 horas',
+      720: 'cada 12 horas',
+      1440: 'cada 24 horas',
+    };
+
+    return expressionByInterval[intervalMinutes] ?? `cada ${intervalMinutes} minutos`;
   }
 
   async handleTranslationsStream(subject: Subject<SseMessageEvent>, lang: string): Promise<void> {
@@ -247,9 +347,8 @@ export class TranslationsService {
       const batchChars = texts.reduce((sum, t) => sum + t.length, 0);
 
       if (charsUsed + batchChars > charLimit) {
-        const msg = `[${fullTableName}] Lote requiere ${batchChars} chars, solo quedan ${
-          charLimit - charsUsed
-        }. Deteniendo.`;
+        const msg = `[${fullTableName}] Lote requiere ${batchChars} chars, solo quedan ${charLimit - charsUsed
+          }. Deteniendo.`;
         this.logOrEmit('warn', msg, emit, {
           tableName,
           columnName,
@@ -263,8 +362,10 @@ export class TranslationsService {
         break;
       }
 
-      const results = await this.deeplClient.translateText(texts, null, deeplLang);
-      const translatedResults = Array.isArray(results) ? results : [results];
+      const translatedTexts = await this.translateBatchPreservingLineBreaks(
+        texts,
+        deeplLang,
+      );
       charsUsed += batchChars;
 
       const toSave = batch.map((row, index) =>
@@ -272,7 +373,7 @@ export class TranslationsService {
           table_name: fullTableName,
           lang,
           field: fieldNameCol ? String(row[fieldNameCol]) : columnName,
-          value: translatedResults[index]?.text ?? '',
+          value: translatedTexts[index] ?? '',
           identifier: String(row[identifierCol]),
         }),
       );
@@ -402,6 +503,49 @@ export class TranslationsService {
     }
 
     return batches;
+  }
+
+  private async translateBatchPreservingLineBreaks(
+    texts: string[],
+    deeplLang: deepl.TargetLanguageCode,
+  ): Promise<string[]> {
+    type LinePosition = { textIndex: number; lineIndex: number };
+
+    const lineBreakPattern = /\r?\n/;
+    const splitTexts = texts.map((text) => text.split(lineBreakPattern));
+    const linePositions: LinePosition[] = [];
+    const linesToTranslate: string[] = [];
+
+    splitTexts.forEach((lines, textIndex) => {
+      lines.forEach((line, lineIndex) => {
+        if (!line.trim()) {
+          return;
+        }
+
+        linePositions.push({ textIndex, lineIndex });
+        linesToTranslate.push(line);
+      });
+    });
+
+    if (linesToTranslate.length === 0) {
+      return texts;
+    }
+
+    const results = await this.deeplClient.translateText(
+      linesToTranslate,
+      null,
+      deeplLang,
+      { preserveFormatting: true },
+    );
+    const translatedLines = (Array.isArray(results) ? results : [results]).map(
+      (result) => result.text,
+    );
+
+    linePositions.forEach(({ textIndex, lineIndex }, index) => {
+      splitTexts[textIndex][lineIndex] = translatedLines[index] ?? '';
+    });
+
+    return splitTexts.map((lines) => lines.join('\n'));
   }
 
   private getDeeplLang(lang: string): deepl.TargetLanguageCode {

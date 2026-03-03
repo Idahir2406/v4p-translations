@@ -14,6 +14,7 @@ import { API_URL } from "~/constants";
 import { useSearchParams } from "react-router";
 import { LanguajeSelector } from "./languajeSelector";
 import { authTokenStorage } from "~/lib/api";
+import { cronConfigService } from "~/services/cronConfigService";
 
 interface LogEntry {
   type: "info" | "warn" | "error" | "progress" | "complete";
@@ -35,6 +36,11 @@ export const TranslateDialog = () => {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<TranslateStatus>("idle");
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [cronInterval, setCronInterval] = useState("360");
+  const [allowedIntervals, setAllowedIntervals] = useState<number[]>([]);
+  const [cronMessage, setCronMessage] = useState("");
+  const [isCronLoading, setIsCronLoading] = useState(false);
+  const [isCronSaving, setIsCronSaving] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,6 +56,56 @@ export const TranslateDialog = () => {
       eventSourceRef.current?.close();
     };
   }, []);
+
+  const handleLoadCronConfig = useCallback(async () => {
+    const token = authTokenStorage.get();
+    if (!token) {
+      return;
+    }
+
+    setIsCronLoading(true);
+    setCronMessage("");
+    try {
+      const config = await cronConfigService.get();
+      setCronInterval(String(config.intervalMinutes));
+      setAllowedIntervals(config.allowedIntervals);
+    } catch {
+      setCronMessage("No se pudo cargar la configuracion del cron.");
+    } finally {
+      setIsCronLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    void handleLoadCronConfig();
+  }, [open, handleLoadCronConfig]);
+
+  const handleSaveCronConfig = async () => {
+    const intervalMinutes = Number(cronInterval);
+    if (!Number.isInteger(intervalMinutes)) {
+      setCronMessage("Selecciona un intervalo valido.");
+      return;
+    }
+
+    setIsCronSaving(true);
+    setCronMessage("");
+    try {
+      const updatedConfig = await cronConfigService.update(intervalMinutes);
+      setCronInterval(String(updatedConfig.intervalMinutes));
+      setAllowedIntervals(updatedConfig.allowedIntervals);
+      setCronMessage("Intervalo del cron actualizado correctamente.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo actualizar el cron.";
+      setCronMessage(message);
+    } finally {
+      setIsCronSaving(false);
+    }
+  };
 
   const handleStart = useCallback(() => {
     const token = authTokenStorage.get();
@@ -151,6 +207,41 @@ export const TranslateDialog = () => {
         </DialogHeader>
 
         <LanguajeSelector value={lang} onChange={(value) => setSearchParams({ lang: value })} />
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <p className="text-sm font-medium">Ejecucion automatica</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Configura cada cuanto tiempo se ejecuta la traduccion automatica.
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <select
+              value={cronInterval}
+              onChange={(event) => setCronInterval(event.target.value)}
+              disabled={isCronLoading || isCronSaving}
+              className="h-9 rounded-md border bg-background px-3 text-sm"
+              aria-label="Intervalo del cron en minutos"
+            >
+              {(allowedIntervals.length > 0 ? allowedIntervals : [15, 30, 60, 180, 360, 720, 1440]).map(
+                (interval) => (
+                  <option key={interval} value={interval}>
+                    {interval} minutos
+                  </option>
+                ),
+              )}
+            </select>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleSaveCronConfig}
+              disabled={isCronLoading || isCronSaving}
+              aria-label="Guardar intervalo de cron"
+            >
+              {isCronSaving ? "Guardando..." : "Guardar intervalo"}
+            </Button>
+          </div>
+          {cronMessage ? (
+            <p className="mt-2 text-xs text-muted-foreground">{cronMessage}</p>
+          ) : null}
+        </div>
         <div
           ref={logsContainerRef}
           className="h-80 overflow-y-auto rounded-lg border bg-muted/30 p-3 font-mono text-xs leading-relaxed"
