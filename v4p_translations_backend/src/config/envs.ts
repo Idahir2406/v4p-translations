@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   DEEPL_API_KEY: z.string().min(1),
+  ENVIRONMENT: z.enum(['development', 'production']).default('development'),
   PORT: z.coerce.number().min(1),
   DB_HOST: z.string().min(1),
   DB_PORT: z.coerce.number().min(1),
