@@ -1,8 +1,9 @@
-import { LanguagesIcon, LogOutIcon } from "lucide-react";
-import { useNavigate } from "react-router";
+import { BellIcon, LogOutIcon } from "lucide-react";
+import { Link, useNavigate } from "react-router";
 import { Button } from "~/components/ui/button";
 import { authService } from "~/services/authService";
 import { TranslationsTable } from "../routes/translationTable";
+import { AppNavbar } from "~/components/app-navbar";
 
 export function Welcome() {
   const navigate = useNavigate();
@@ -14,20 +15,17 @@ export function Welcome() {
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 border-b bg-card/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary">
-            <LanguagesIcon className="size-5 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold leading-tight text-foreground">
-              V4P Translations
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Panel de configuración de traducciones
-            </p>
-          </div>
-          <div className="ml-auto">
+      <AppNavbar
+        title="V4P Translations"
+        subtitle="Panel de configuración de traducciones"
+        actions={
+          <>
+            <Link to="/translation-events">
+              <Button type="button" variant="outline">
+                <BellIcon className="mr-2 size-4" />
+                Eventos de traducción
+              </Button>
+            </Link>
             <Button
               type="button"
               variant="outline"
@@ -37,9 +35,9 @@ export function Welcome() {
               <LogOutIcon className="mr-2 size-4" />
               Cerrar sesión
             </Button>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <TranslationsTable />

@@ -6,6 +6,7 @@ import { TranslationEvent } from './entities/translation-event.entity';
 import { ClienteTranslation } from 'src/translations/entities/clientTranslations.entity';
 import { Language } from 'src/languages/entities/language.entity';
 import { envs } from 'src/config/envs';
+import { GetTranslationEventsDto } from './dto/get-translation-events.dto';
 
 @Injectable()
 export class TranslationEventsService {
@@ -21,6 +22,15 @@ export class TranslationEventsService {
     private readonly languageRepository: Repository<Language>,
   ) {
     this.deeplClient = new deepl.DeepLClient(envs.DEEPL_API_KEY);
+  }
+
+  async getEvents(dto: GetTranslationEventsDto) {
+    const { status } = dto;
+    const events = await this.translationEventRepository.find({
+      where: { status },
+      order: { id: 'ASC' },
+    });
+    return events;
   }
 
   async processPendingEvents(limit = 100) {
