@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
-import { envs } from "src/config/envs";
+import { envs } from "../../config/envs";
 
 @Entity(`${envs.DB_INITIAL}translation_tables`)
 export class TranslationTable {

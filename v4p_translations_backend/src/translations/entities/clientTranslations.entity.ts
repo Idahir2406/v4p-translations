@@ -1,5 +1,5 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import { envs } from 'src/config/envs';
+import { envs } from '../../config/envs';
 
 @Entity(`${envs.DB_INITIAL}clientes_translations`)
 @Index(['table_name', 'lang', 'field', 'identifier'], { unique: true })
@@ -21,4 +21,6 @@ export class ClienteTranslation {
 
   @Column()
   identifier: string;
+
+
 }

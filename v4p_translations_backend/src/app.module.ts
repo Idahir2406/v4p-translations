@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { CronJobsService } from './common/services/cron-jobs/cron-jobs.service';
 import { ScheduleModule } from '@nestjs/schedule';
 import { typeOrmConfig } from './database/datasource';
+import { TranslationEventsModule } from './translation-events/translation-events.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { typeOrmConfig } from './database/datasource';
     ManagerModule,
     AuthModule,
     ScheduleModule.forRoot(),
+    TranslationEventsModule,
   ],
   controllers: [AppController],
   providers: [AppService, CronJobsService],

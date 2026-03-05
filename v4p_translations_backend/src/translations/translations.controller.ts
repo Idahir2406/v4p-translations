@@ -31,4 +31,6 @@ export class TranslationsController {
     void this.translationsService.handleTranslationsStream(subject, lang);
     return subject.asObservable();
   }
+ 
+
 }

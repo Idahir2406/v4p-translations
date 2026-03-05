@@ -2,7 +2,7 @@
 
 import { config } from "dotenv";
 import { DataSource, DataSourceOptions } from "typeorm";
-import { envs } from "src/config/envs";
+import { envs } from "../config/envs";
 
 config();
 
@@ -11,7 +11,7 @@ export const typeOrmConfig: DataSourceOptions = {
   entities: [__dirname + "/../**/*.entity{.ts,.js}"],
   port: envs.DB_PORT,
   synchronize: false,
-  logging: true,
+  logging: false,
   migrations: [__dirname + '/../database/migrations/**/*{.ts,.js}'],
   host: envs.DB_HOST,
   username: envs.DB_USERNAME,
