@@ -7,6 +7,7 @@ import { ClienteTranslation } from 'src/translations/entities/clientTranslations
 import { Language } from 'src/languages/entities/language.entity';
 import { envs } from 'src/config/envs';
 import { GetTranslationEventsDto } from './dto/get-translation-events.dto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class TranslationEventsService {
@@ -33,7 +34,11 @@ export class TranslationEventsService {
     return events;
   }
 
+  @Cron(CronExpression.EVERY_HOUR)
   async processPendingEvents(limit = 100) {
+    if (envs.ENVIRONMENT === 'development') {
+      return;
+    }
     const pendingEvents = await this.translationEventRepository.find({
       where: { status: 'pending' },
       order: { id: 'ASC' },
