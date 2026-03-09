@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from "~/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost } from "~/lib/api";
 import type { TranslationTable } from "./translationsService";
 
 export interface ClienteTranslation {
@@ -46,5 +46,9 @@ export const managerService = {
     return apiPatch<ClienteTranslation>(`/manager/translation/${id}`, {
       value,
     });
+  },
+
+  deleteTranslation: async (id: number): Promise<ClienteTranslation> => {
+    return apiDelete<ClienteTranslation>(`/manager/translation/${id}`);
   },
 };

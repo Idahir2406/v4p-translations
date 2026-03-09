@@ -93,6 +93,16 @@ export class ManagerService {
     };
   }
 
+  async deleteTranslation(id: number) {
+    const translation = await this.clienteTranslationRepository.findOneBy({ id });
+
+    if (!translation) {
+      throw new NotFoundException(`Traducción con id '${id}' no encontrada`);
+    }
+
+    return this.clienteTranslationRepository.remove(translation);
+  }
+
   async updateTranslation(id: number, dto: UpdateTranslationDto) {
     const translation = await this.clienteTranslationRepository.findOneBy({ id });
 

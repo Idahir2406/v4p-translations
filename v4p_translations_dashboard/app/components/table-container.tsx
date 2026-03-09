@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router";
 import type { ClienteTranslation } from "~/services/managerService";
 import { Badge } from "~/components/ui/badge";
 import { EditTranslationDialog } from "./edit-translation-dialog";
+import { DeleteTranslationDialog } from "./delete-translation-dialog";
 
 interface TableContainerProps {
   translations: ClienteTranslation[];
@@ -19,7 +20,7 @@ const LANG_LABELS: Record<string, string> = {
   es: "Español",
 };
 
-const GRID_COLS = "grid-cols-[140px_180px_70px_1fr_44px]";
+const GRID_COLS = "grid-cols-[140px_180px_70px_1fr_88px]";
 
 export const TableContainer = ({
   translations,
@@ -187,8 +188,9 @@ export const TableContainer = ({
                     >
                       {row.value}
                     </div>
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center justify-center gap-1">
                       <EditTranslationDialog translation={row} />
+                      <DeleteTranslationDialog translation={row} />
                     </div>
                   </div>
                 );

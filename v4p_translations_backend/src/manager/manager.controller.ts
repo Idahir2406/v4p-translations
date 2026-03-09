@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -36,5 +37,10 @@ export class ManagerController {
     @Body() dto: UpdateTranslationDto,
   ) {
     return this.managerService.updateTranslation(id, dto);
+  }
+
+  @Delete("translation/:id")
+  deleteTranslation(@Param("id", ParseIntPipe) id: number) {
+    return this.managerService.deleteTranslation(id);
   }
 }
