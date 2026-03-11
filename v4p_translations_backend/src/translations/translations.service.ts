@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Subject } from 'rxjs';
@@ -9,7 +9,7 @@ import { envs } from 'src/config/envs';
 import { ClienteTranslation } from './entities/clientTranslations.entity';
 import { TranslationTable } from 'src/translation-tables/entities/translation-table.entity';
 import { Language } from 'src/languages/entities/language.entity';
-import { SchedulerRegistry } from '@nestjs/schedule';
+import { Cron, CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 
 type StreamEventType = 'info' | 'warn' | 'progress' | 'error' | 'complete';
 
@@ -34,7 +34,7 @@ export interface SseMessageEvent {
 type SseEmitter = (payload: StreamPayload) => void;
 
 @Injectable()
-export class TranslationsService implements OnModuleInit, OnModuleDestroy {
+export class TranslationsService {
   private readonly deeplClient: deepl.DeepLClient;
   private readonly oneSecond = 1000;
   private readonly maxCharsPerBatch = 5000;
@@ -56,41 +56,8 @@ export class TranslationsService implements OnModuleInit, OnModuleDestroy {
     this.deeplClient = new deepl.DeepLClient(envs.DEEPL_API_KEY);
   }
 
-  onModuleInit() {
-    this.configureCronJob(this.cronIntervalMinutes);
-  }
 
-  onModuleDestroy() {
-    try {
-      const interval = this.schedulerRegistry.getInterval(
-        this.cronIntervalName,
-      ) as NodeJS.Timeout;
-      clearInterval(interval);
-      this.schedulerRegistry.deleteInterval(this.cronIntervalName);
-    } catch {
-      // Ignore if the interval does not exist.
-    }
-  }
 
-  getCronConfig() {
-    return {
-      intervalMinutes: this.cronIntervalMinutes,
-      cronExpression: this.buildCronExpression(this.cronIntervalMinutes),
-      allowedIntervals: this.allowedCronIntervals,
-    };
-  }
-
-  updateCronInterval(intervalMinutes: number) {
-    if (!this.allowedCronIntervals.includes(intervalMinutes)) {
-      throw new BadRequestException(
-        `Intervalo no permitido. Usa uno de: ${this.allowedCronIntervals.join(', ')}`,
-      );
-    }
-
-    this.cronIntervalMinutes = intervalMinutes;
-    this.configureCronJob(intervalMinutes);
-    return this.getCronConfig();
-  }
 
   async handleTranslations(lang: string) {
     const usage = await this.getRemainingChars();
@@ -151,50 +118,9 @@ export class TranslationsService implements OnModuleInit, OnModuleDestroy {
 
   }
 
-  private configureCronJob(intervalMinutes: number) {
-    const intervalMs = intervalMinutes * 60 * 1000;
 
-    try {
-      const previousInterval = this.schedulerRegistry.getInterval(
-        this.cronIntervalName,
-      ) as NodeJS.Timeout;
-      clearInterval(previousInterval);
-      this.schedulerRegistry.deleteInterval(this.cronIntervalName);
-    } catch {
-      // Ignore if the interval does not exist.
-    }
-
-    const intervalHandler = setInterval(() => {
-      void this.handleTranslationsCron().catch((error: unknown) => {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Error desconocido en cron';
-        this.logger.error(`Error en cron de traducciones: ${errorMessage}`);
-      });
-    }, intervalMs);
-
-    this.schedulerRegistry.addInterval(this.cronIntervalName, intervalHandler);
-    this.logger.log(
-      `Cron de traducciones configurado cada ${intervalMinutes} minutos (${this.buildCronExpression(
-        intervalMinutes,
-      )})`,
-    );
-  }
-
-  private buildCronExpression(intervalMinutes: number): string {
-    const expressionByInterval: Record<number, string> = {
-      15: 'cada 15 minutos',
-      30: 'cada 30 minutos',
-      60: 'cada 1 hora',
-      180: 'cada 3 horas',
-      360: 'cada 6 horas',
-      720: 'cada 12 horas',
-      1440: 'cada 24 horas',
-    };
-
-    return expressionByInterval[intervalMinutes] ?? `cada ${intervalMinutes} minutos`;
-  }
-
-  async handleTranslationsStream(subject: Subject<SseMessageEvent>, lang: string): Promise<void> {
+  @Cron(CronExpression.EVERY_HOUR)
+  async handleTranslationsStream(subject: Subject<SseMessageEvent>, lang: string = 'en'): Promise<void> {
     const emit: SseEmitter = (payload) => subject.next({ data: payload });
 
     try {
