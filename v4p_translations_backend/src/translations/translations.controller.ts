@@ -12,12 +12,12 @@ export class TranslationsController {
 
   @Get('cron/config')
   getCronConfig() {
-    return this.translationsService.getCronConfig();
+    // return this.translationsService.getCronConfig();
   }
 
   @Patch('cron/config')
   updateCronConfig(@Body() dto: UpdateCronIntervalDto) {
-    return this.translationsService.updateCronInterval(dto.intervalMinutes);
+    // return this.translationsService.updateCronInterval(dto.intervalMinutes);
   }
 
   @Get('run')
