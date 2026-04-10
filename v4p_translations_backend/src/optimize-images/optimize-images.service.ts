@@ -2,8 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import * as path from 'path';
 import sharp from 'sharp';
 import {
-  RESIZE_MAX_HEIGHT,
-  RESIZE_MAX_WIDTH,
+  WEBP_ALPHA_QUALITY,
   WEBP_EFFORT,
   WEBP_QUALITY,
 } from './optimize-images.constants';
@@ -33,15 +32,11 @@ export class OptimizeImagesService {
     try {
       const pipeline = sharp(input, { failOn: 'error', animated: true })
         .rotate()
-        .resize(RESIZE_MAX_WIDTH, RESIZE_MAX_HEIGHT, {
-          fit: 'inside',
-          withoutEnlargement: true,
-        })
         .webp({
           quality: WEBP_QUALITY,
           effort: WEBP_EFFORT,
           smartSubsample: true,
-          alphaQuality: 100,
+          alphaQuality: WEBP_ALPHA_QUALITY,
         });
 
       const webpBuffer = await pipeline.toBuffer();
