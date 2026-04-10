@@ -6,7 +6,9 @@ import { ValidationPipe } from '@nestjs/common';
 const allowedOrigins = [
   'http://localhost:5173',
   'http://46.225.229.161:5173',
-  'https://dashboard.viajes4patas.com'
+  'https://dashboard.viajes4patas.com',
+  'https://www.viajes4patas.com',
+  'https://www.viajes4patas.com/es',
 ];
 
 async function bootstrap() {
