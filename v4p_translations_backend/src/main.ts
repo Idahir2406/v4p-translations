@@ -8,7 +8,7 @@ const allowedOrigins = [
   'http://46.225.229.161:5173',
   'https://dashboard.viajes4patas.com',
   'https://www.viajes4patas.com',
-  'https://www.viajes4patas.com/es',
+  'https://viajes4patas.com',
 ];
 
 async function bootstrap() {
