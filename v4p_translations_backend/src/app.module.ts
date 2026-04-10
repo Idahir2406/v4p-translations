@@ -13,7 +13,7 @@ import { typeOrmConfig } from './database/datasource';
 import { TranslationEventsModule } from './translation-events/translation-events.module';
 import { UserModule } from './user/user.module';
 import { FavoritesModule } from './favorites/favorites.module';
-
+import { OptimizeImagesModule } from './optimize-images/optimize-images.module';
 @Module({
   imports: [
     TypeOrmModule.forRoot(typeOrmConfig),
@@ -26,6 +26,7 @@ import { FavoritesModule } from './favorites/favorites.module';
     TranslationEventsModule,
     UserModule,
     FavoritesModule,
+    OptimizeImagesModule,
   ],
   controllers: [AppController],
   providers: [AppService, CronJobsService],
