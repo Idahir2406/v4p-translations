@@ -119,7 +119,7 @@ export class TranslationsService {
   }
 
 
-  @Cron(CronExpression.EVERY_HOUR)
+  // @Cron(CronExpression.EVERY_HOUR)
   async handleTranslationsStream(subject: Subject<SseMessageEvent>, lang: string = 'en'): Promise<void> {
     const emit: SseEmitter = (payload) => subject.next({ data: payload });
 
