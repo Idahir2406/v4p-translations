@@ -13,5 +13,6 @@ const envSchema = z.object({
   DB_INITIAL: z.string().min(1),
   BASE_URL: z.string().min(1),
   CRON_TOKEN: z.string().min(1),
+  DEEPSEEK_API_KEY: z.string().min(1),
 });
 export const envs = envSchema.parse(process.env);

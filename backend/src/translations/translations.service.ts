@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Subject } from 'rxjs';
-import * as deepl from 'deepl-node';
+import OpenAI from 'openai';
 
 import { MysqlService } from 'src/common/services/mysql/mysql.service';
 import { envs } from 'src/config/envs';
@@ -35,7 +35,7 @@ type SseEmitter = (payload: StreamPayload) => void;
 
 @Injectable()
 export class TranslationsService {
-  private readonly deeplClient: deepl.DeepLClient;
+  private readonly deepseekClient: OpenAI;
   private readonly oneSecond = 1000;
   private readonly maxCharsPerBatch = 5000;
   private readonly logger = new Logger(TranslationsService.name);
@@ -53,19 +53,18 @@ export class TranslationsService {
     @InjectRepository(Language)
     private readonly languageRepository: Repository<Language>,
   ) {
-    this.deeplClient = new deepl.DeepLClient(envs.DEEPL_API_KEY);
+    this.deepseekClient = new OpenAI({
+      apiKey: envs.DEEPSEEK_API_KEY,
+      baseURL: 'https://api.deepseek.com',
+    });
   }
 
 
 
 
   async handleTranslations(lang: string) {
-    const usage = await this.getRemainingChars();
-    this.logger.log(`Caracteres disponibles: ${usage}`);
-
-    if (usage <= 0) {
-      return { message: 'Límite de caracteres alcanzado', charactersRemaining: usage };
-    }
+    const usage = this.getCharLimit();
+    this.logger.log(`Límite de caracteres configurado: ${usage}`);
 
     const results: { tableName: string; columnName: string; lang: string; status: string }[] = [];
     let charsUsed = 0;
@@ -88,8 +87,8 @@ export class TranslationsService {
           column,
           lang,
           remainingChars,
-          table.identifier ?? "id",
-          table.field_name ?? undefined,
+          table.identifier || "id",
+          table.field_name || undefined,
         );
 
         results.push({
@@ -124,28 +123,12 @@ export class TranslationsService {
     const emit: SseEmitter = (payload) => subject.next({ data: payload });
 
     try {
-      const usage = await this.getRemainingChars();
+      const usage = this.getCharLimit();
       emit({
         type: 'info',
-        message: `Caracteres disponibles en DeepL: ${usage}`,
+        message: `Límite de caracteres configurado: ${usage}`,
         remainingChars: usage,
       });
-
-      if (usage <= 0) {
-        emit({
-          type: 'warn',
-          message: 'Límite de caracteres alcanzado. No se ejecutaron traducciones.',
-          remainingChars: usage,
-          status: 'limit_reached',
-        });
-        emit({
-          type: 'complete',
-          message: 'Proceso finalizado sin cambios.',
-          charsUsed: 0,
-          remainingChars: usage,
-        });
-        return;
-      }
 
       let charsUsed = 0;
 
@@ -154,7 +137,9 @@ export class TranslationsService {
       });
 
       for (const table of translationTables) {
+        this.logger.log(`[${table.table_name}] Traduciendo tabla: ${table.table_name}`);
         for (const column of table.columns) {
+          this.logger.log(`[${table.table_name}] Traduciendo columna: ${column}`);
           const remainingChars = usage - charsUsed;
 
           if (remainingChars <= 0) {
@@ -187,8 +172,8 @@ export class TranslationsService {
             column,
             lang,
             remainingChars,
-            table.identifier ?? "id",
-            table.field_name ?? undefined,
+            table.identifier || "id",
+            table.field_name || undefined,
             emit,
           );
 
@@ -231,7 +216,6 @@ export class TranslationsService {
     emit?: SseEmitter,
   ) {
     const fullTableName = `${envs.DB_INITIAL}${tableName}`;
-    const deeplLang = this.getDeeplLang(lang);
     let charsUsed = 0;
 
     const remainingRows = await this.getRemainingRows(
@@ -290,7 +274,7 @@ export class TranslationsService {
 
       const translatedTexts = await this.translateBatchPreservingLineBreaks(
         texts,
-        deeplLang,
+        lang,
       );
       charsUsed += batchChars;
 
@@ -382,13 +366,8 @@ export class TranslationsService {
     });
   }
 
-  private async getRemainingChars(): Promise<number> {
-    const usage = await this.deeplClient.getUsage();
-    if (!usage.character) return 0;
-
-    const remaining = (usage.character.limit ?? 0) - (usage.character.count ?? 0);
-    this.logger.log(`DeepL uso: ${usage.character.count}/${usage.character.limit} chars`);
-    return remaining;
+  private getCharLimit(): number {
+    return 10_000_000;
   }
 
   private splitIntoBatchesByChars(
@@ -433,7 +412,7 @@ export class TranslationsService {
 
   private async translateBatchPreservingLineBreaks(
     texts: string[],
-    deeplLang: deepl.TargetLanguageCode,
+    lang: string,
   ): Promise<string[]> {
     type LinePosition = { textIndex: number; lineIndex: number };
 
@@ -444,10 +423,7 @@ export class TranslationsService {
 
     splitTexts.forEach((lines, textIndex) => {
       lines.forEach((line, lineIndex) => {
-        if (!line.trim()) {
-          return;
-        }
-
+        if (!line.trim()) return;
         linePositions.push({ textIndex, lineIndex });
         linesToTranslate.push(line);
       });
@@ -457,30 +433,32 @@ export class TranslationsService {
       return texts;
     }
 
-    const results = await this.deeplClient.translateText(
-      linesToTranslate,
-      null,
-      deeplLang,
-      { preserveFormatting: true },
-    );
-    const translatedLines = (Array.isArray(results) ? results : [results]).map(
-      (result) => result.text,
-    );
+    const response = await this.deepseekClient.chat.completions.create({
+      model: 'deepseek-chat',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a professional translator. Translate each string in the JSON array to the language with ISO code "${lang}". Return ONLY a valid JSON array with the translated strings in the same order, no extra content.`,
+        },
+        { role: 'user', content: JSON.stringify(linesToTranslate) },
+      ],
+      temperature: 0.3,
+    });
+
+    let translatedLines: string[] = linesToTranslate;
+    try {
+      const content = response.choices[0]?.message?.content?.trim() ?? '[]';
+      const cleaned = content.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      translatedLines = JSON.parse(cleaned) as string[];
+    } catch {
+      this.logger.warn('No se pudo parsear respuesta de DeepSeek, usando textos originales');
+    }
 
     linePositions.forEach(({ textIndex, lineIndex }, index) => {
       splitTexts[textIndex][lineIndex] = translatedLines[index] ?? '';
     });
 
     return splitTexts.map((lines) => lines.join('\n'));
-  }
-
-  private getDeeplLang(lang: string): deepl.TargetLanguageCode {
-    const langMap: Record<string, deepl.TargetLanguageCode> = {
-      en: 'en-US',
-      fr: 'fr',
-      pt: 'pt-BR',
-    };
-    return langMap[lang] ?? (lang as deepl.TargetLanguageCode);
   }
 
   private delay(ms: number): Promise<void> {

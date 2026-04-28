@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as deepl from 'deepl-node';
+import OpenAI from 'openai';
 import { Repository } from 'typeorm';
 import { TranslationEvent } from './entities/translation-event.entity';
 import { ClienteTranslation } from 'src/translations/entities/clientTranslations.entity';
@@ -12,7 +12,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 @Injectable()
 export class TranslationEventsService {
   private readonly logger = new Logger(TranslationEventsService.name);
-  private readonly deeplClient: deepl.DeepLClient;
+  private readonly deepseekClient: OpenAI;
 
   constructor(
     @InjectRepository(TranslationEvent)
@@ -22,7 +22,10 @@ export class TranslationEventsService {
     @InjectRepository(Language)
     private readonly languageRepository: Repository<Language>,
   ) {
-    this.deeplClient = new deepl.DeepLClient(envs.DEEPL_API_KEY);
+    this.deepseekClient = new OpenAI({
+      apiKey: envs.DEEPSEEK_API_KEY,
+      baseURL: 'https://api.deepseek.com',
+    });
   }
 
   async getEvents(dto: GetTranslationEventsDto) {
@@ -121,46 +124,18 @@ export class TranslationEventsService {
       return normalizedText;
     }
 
-    const deeplLang = this.getDeeplLang(lang);
-    const lines = normalizedText.split(/\r?\n/);
-    const linesToTranslate = lines.filter((line) => line.trim().length > 0);
-
-    if (linesToTranslate.length === 0) {
-      return normalizedText;
-    }
-
-    const result = await this.deeplClient.translateText(
-      linesToTranslate,
-      null,
-      deeplLang,
-      { preserveFormatting: true },
-    );
-
-    const translatedLines = (Array.isArray(result) ? result : [result]).map(
-      (item) => item.text,
-    );
-
-    let translatedLineIndex = 0;
-    const mergedLines = lines.map((line) => {
-      if (!line.trim()) {
-        return line;
-      }
-
-      const translatedLine = translatedLines[translatedLineIndex];
-      translatedLineIndex += 1;
-      return translatedLine ?? '';
+    const response = await this.deepseekClient.chat.completions.create({
+      model: 'deepseek-v4-flash',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a professional translator. Translate the following text to the language with ISO code "${lang}". Return ONLY the translated text, no explanations, no extra content.`,
+        },
+        { role: 'user', content: normalizedText },
+      ],
+      temperature: 0.3,
     });
 
-    return mergedLines.join('\n');
-  }
-
-  private getDeeplLang(lang: string): deepl.TargetLanguageCode {
-    const langMap: Record<string, deepl.TargetLanguageCode> = {
-      en: 'en-US',
-      fr: 'fr',
-      pt: 'pt-BR',
-    };
-
-    return langMap[lang] ?? (lang as deepl.TargetLanguageCode);
+    return response.choices[0]?.message?.content?.trim() ?? normalizedText;
   }
 }
