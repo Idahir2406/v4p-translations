@@ -32,5 +32,9 @@ export class TranslationsController {
     return subject.asObservable();
   }
  
+  @Get('cron/run')
+  runTranslationsCron() {
+    return this.translationsService.handleTranslationsCron();
+  }
 
 }

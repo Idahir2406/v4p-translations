@@ -3,6 +3,7 @@ import { envs } from '../../config/envs';
 
 @Entity(`${envs.DB_INITIAL}clientes_translations`)
 @Index(['table_name', 'lang', 'field', 'identifier'], { unique: true })
+@Index(['table_name', 'lang', 'field', 'identifier', 'page'], { unique: true })
 export class ClienteTranslation {
   @PrimaryGeneratedColumn()
   id: number;
@@ -22,5 +23,7 @@ export class ClienteTranslation {
   @Column()
   identifier: string;
 
+  @Column({ nullable: true })
+  page: string
 
 }

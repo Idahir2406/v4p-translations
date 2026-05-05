@@ -9,7 +9,7 @@ import { envs } from 'src/config/envs';
 import { ClienteTranslation } from './entities/clientTranslations.entity';
 import { TranslationTable } from 'src/translation-tables/entities/translation-table.entity';
 import { Language } from 'src/languages/entities/language.entity';
-import { Cron, CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 type StreamEventType = 'info' | 'warn' | 'progress' | 'error' | 'complete';
 
@@ -39,12 +39,8 @@ export class TranslationsService {
   private readonly oneSecond = 1000;
   private readonly maxCharsPerBatch = 5000;
   private readonly logger = new Logger(TranslationsService.name);
-  private readonly cronIntervalName = 'translations-auto-run';
-  private readonly allowedCronIntervals = [15, 30, 60, 180, 360, 720, 1440];
-  private cronIntervalMinutes = 360;
 
   constructor(
-    private readonly schedulerRegistry: SchedulerRegistry,
     private readonly mysqlService: MysqlService,
     @InjectRepository(ClienteTranslation)
     private readonly clienteTranslationRepository: Repository<ClienteTranslation>,
@@ -59,7 +55,7 @@ export class TranslationsService {
     });
   }
 
-
+  
 
 
   async handleTranslations(lang: string) {
@@ -104,8 +100,11 @@ export class TranslationsService {
     return { message: "Traducciones completadas", results, charsUsed };
   }
 
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async handleTranslationsCron() {
-
+    if (envs.ENVIRONMENT === 'development') {
+      return;
+    }
     const languages = await this.languageRepository.find({
       where: { is_active: true, is_default: false },
       order: { code: 'ASC' },
@@ -118,7 +117,6 @@ export class TranslationsService {
   }
 
 
-  // @Cron(CronExpression.EVERY_HOUR)
   async handleTranslationsStream(subject: Subject<SseMessageEvent>, lang: string = 'en'): Promise<void> {
     const emit: SseEmitter = (payload) => subject.next({ data: payload });
 
