@@ -129,7 +129,7 @@ export class TranslationEventsService {
       messages: [
         {
           role: 'system',
-          content: `You are a professional translator. Translate the following text to the language with ISO code "${lang}". Return ONLY the translated text, no explanations, no extra content.`,
+          content: `You are a professional translator. Translate the following text to the language with ISO code "${lang}". Return ONLY the translated text, no explanations, no extra content. Sometimes the text contains html tags, you must preserve them, and the ancors <a href="...">...</a> must be preserved, do not translate them. Preserve any important content that could generate problems if translated.`,
         },
         { role: 'user', content: normalizedText },
       ],

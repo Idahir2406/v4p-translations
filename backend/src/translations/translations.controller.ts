@@ -6,7 +6,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { UpdateCronIntervalDto } from './dto/update-cron-interval.dto';
 
 @Controller('translations')
-@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard)
 export class TranslationsController {
   constructor(private readonly translationsService: TranslationsService) {}
 

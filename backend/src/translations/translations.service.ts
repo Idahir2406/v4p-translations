@@ -436,7 +436,7 @@ export class TranslationsService {
       messages: [
         {
           role: 'system',
-          content: `You are a professional translator. Translate each string in the JSON array to the language with ISO code "${lang}". Return ONLY a valid JSON array with the translated strings in the same order, no extra content.`,
+          content: `You are a professional translator. Translate each string in the JSON array to the language with ISO code "${lang}". Return ONLY a valid JSON array with the translated strings in the same order, no extra content. Sometimes the text contains html tags, you must preserve them, and the ancors <a href="...">...</a> must be preserved, do not translate them. Preserve any important content that could generate problems if translated`,
         },
         { role: 'user', content: JSON.stringify(linesToTranslate) },
       ],
