@@ -1,23 +1,26 @@
-FROM node:22-alpine AS development-dependencies-env
-COPY . /app
+FROM node:22-alpine AS base
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
-RUN corepack enable && pnpm install --frozen-lockfile
 
-FROM node:22-alpine AS production-dependencies-env
-COPY ./package.json pnpm-lock.yaml /app/
-WORKDIR /app
-RUN corepack enable && pnpm install --prod --frozen-lockfile
+FROM base AS development-dependencies-env
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY . .
 
-FROM node:22-alpine AS build-env
-COPY . /app/
-COPY --from=development-dependencies-env /app/node_modules /app/node_modules
-WORKDIR /app
-RUN corepack enable && pnpm run build
+FROM base AS production-dependencies-env
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
+
+FROM base AS build-env
+COPY --from=development-dependencies-env /app /app
+RUN pnpm run build
 
 FROM node:22-alpine
-COPY ./package.json pnpm-lock.yaml /app/
-COPY --from=production-dependencies-env /app/node_modules /app/node_modules
-COPY --from=build-env /app/build /app/build
 WORKDIR /app
-RUN corepack enable
-CMD ["pnpm", "run", "start"]
+ENV NODE_ENV=production
+ENV PORT=5173
+COPY package.json pnpm-lock.yaml ./
+COPY --from=production-dependencies-env /app/node_modules ./node_modules
+COPY --from=build-env /app/build ./build
+EXPOSE 5173
+CMD ["npm", "run", "start"]
