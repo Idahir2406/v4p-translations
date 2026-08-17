@@ -7,7 +7,7 @@ import { envs } from "../../config/envs";
 
 
 
-@Entity(`${envs.DB_INITIAL}user_profiles`)
+@Entity(`${envs.DB_PREFIX}user_profiles`)
 export class User {
   @PrimaryGeneratedColumn()
   id: number;

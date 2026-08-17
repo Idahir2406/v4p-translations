@@ -17,4 +17,8 @@ export class CreateTranslationTableDto {
   @IsString()
   @IsOptional()
   field_name?: string;
+
+  @IsString()
+  @IsOptional()
+  page?: string;
 }

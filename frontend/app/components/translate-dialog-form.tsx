@@ -10,6 +10,7 @@ export const translationTableSchema = z.object({
   columns: z.string().min(1, "Las columnas son requeridas"),
   identifier: z.string().optional(),
   field_name: z.string().optional(),
+  page_source: z.string().optional(),
 });
 
 export type TranslationTableFormValues = z.infer<typeof translationTableSchema>;
@@ -39,8 +40,15 @@ export const TranslationTableForm = ({
           columns: defaultValues.columns.join(", "),
           identifier: defaultValues.identifier ?? "",
           field_name: defaultValues.field_name ?? "",
+          page_source: defaultValues.page_source ?? "",
         }
-      : { table_name: "", columns: "", identifier: "", field_name: "" },
+      : {
+          table_name: "",
+          columns: "",
+          identifier: "",
+          field_name: "",
+          page_source: "",
+        },
   });
 
   return (
@@ -77,6 +85,20 @@ export const TranslationTableForm = ({
           Field name <span className="text-muted-foreground font-normal">(columna CMS)</span>
         </label>
         <Input id="field_name" placeholder="ej: variable" {...register("field_name")} />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="page_source" className="text-sm font-medium">
+          Page source{" "}
+          <span className="text-muted-foreground font-normal">
+            (ej: variables0.pagina)
+          </span>
+        </label>
+        <Input
+          id="page_source"
+          placeholder="ej: variables0.pagina"
+          {...register("page_source")}
+        />
       </div>
 
       <Button type="submit" disabled={isLoading} className="mt-2">

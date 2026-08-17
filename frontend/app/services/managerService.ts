@@ -8,6 +8,7 @@ export interface ClienteTranslation {
   field: string;
   value: string;
   identifier: string;
+  page: string;
 }
 
 export interface ManagerResponse {
@@ -19,6 +20,7 @@ export interface FilterOptionsResponse {
   translationTable: TranslationTable;
   fields: string[];
   langs: string[];
+  pages: string[];
   totalTranslations: number;
 }
 
@@ -26,6 +28,7 @@ export interface GetTranslationsParams {
   id: string;
   lang?: string;
   field?: string;
+  page?: string;
 }
 
 export const managerService = {

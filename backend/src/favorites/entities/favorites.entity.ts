@@ -5,7 +5,7 @@ import { User } from "../../user/entities/user.entity";
 import { Sites } from "./sites.entity";
 
 
-@Entity(`${envs.DB_INITIAL}favorites`)
+@Entity(`${envs.DB_PREFIX}favorites`)
 export class Favorites {
   @PrimaryGeneratedColumn()
   id: number;

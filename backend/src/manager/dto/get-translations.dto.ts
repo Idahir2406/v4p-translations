@@ -13,4 +13,8 @@ export class GetTranslationsDto {
   @IsString()
   @IsOptional()
   field?: string;
+
+  @IsString()
+  @IsOptional()
+  page?: string;
 }

@@ -7,6 +7,7 @@ export interface TranslationEvent {
   field: string;
   new_value: string;
   identifier: string;
+  page: string;
   status: string;
   created_at?: string;
   updated_at?: string;

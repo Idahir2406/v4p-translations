@@ -1,7 +1,7 @@
 import { envs } from "../../config/envs";
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
-@Entity(`${envs.DB_INITIAL}translation_events`)
+@Entity(`${envs.DB_PREFIX}translation_events`)
 export class TranslationEvent {
   @PrimaryGeneratedColumn()
   id: number;
@@ -17,6 +17,9 @@ export class TranslationEvent {
 
   @Column()
   identifier: string;
+
+  @Column({ type: 'varchar', length: 255, default: '' })
+  page: string;
 
   @Column({default: 'pending'})
   status: string;

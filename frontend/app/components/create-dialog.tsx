@@ -31,6 +31,7 @@ export const CreateDialog = () => {
         columns: parseColumns(values.columns),
         identifier: values.identifier || undefined,
         field_name: values.field_name || undefined,
+        page_source: values.page_source || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["translations-tables"] });

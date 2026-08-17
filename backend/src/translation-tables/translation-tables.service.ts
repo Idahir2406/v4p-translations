@@ -18,6 +18,7 @@ export class TranslationTablesService {
       ...dto,
       identifier: dto.identifier ?? null,
       field_name: dto.field_name ?? null,
+      page: dto.page ?? null,
     });
     return this.translationTableRepository.save(entity);
   }
@@ -40,8 +41,13 @@ export class TranslationTablesService {
     id: string,
     dto: UpdateTranslationTableDto,
   ): Promise<TranslationTable> {
-    const entity = await this.findOne(id);
-    Object.assign(entity, dto);
+    const entity = await this.translationTableRepository.preload({
+      id,
+      ...dto,
+    });
+    if (!entity) {
+      throw new NotFoundException(`TranslationTable con id '${id}' no encontrada`);
+    }
     return this.translationTableRepository.save(entity);
   }
 

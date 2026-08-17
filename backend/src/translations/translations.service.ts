@@ -33,6 +33,14 @@ export interface SseMessageEvent {
 
 type SseEmitter = (payload: StreamPayload) => void;
 
+const TRANSLATION_CONFLICT_PATHS = [
+  'table_name',
+  'lang',
+  'field',
+  'identifier',
+  'page',
+] as const;
+
 @Injectable()
 export class TranslationsService {
   private readonly deepseekClient: OpenAI;
@@ -85,6 +93,7 @@ export class TranslationsService {
           remainingChars,
           table.identifier || "id",
           table.field_name || undefined,
+          table.page || undefined,
         );
 
         results.push({
@@ -172,6 +181,7 @@ export class TranslationsService {
             remainingChars,
             table.identifier || "id",
             table.field_name || undefined,
+            table.page || undefined,
             emit,
           );
 
@@ -211,9 +221,10 @@ export class TranslationsService {
     charLimit: number,
     identifierCol = 'id',
     fieldNameCol?: string,
+    pageSource?: string,
     emit?: SseEmitter,
   ) {
-    const fullTableName = `${envs.DB_INITIAL}${tableName}`;
+    const fullTableName = `${envs.DB_PREFIX}${tableName}`;
     let charsUsed = 0;
 
     const remainingRows = await this.getRemainingRows(
@@ -222,6 +233,7 @@ export class TranslationsService {
       lang,
       identifierCol,
       fieldNameCol,
+      pageSource,
     );
 
     if (remainingRows.length === 0) {
@@ -283,12 +295,13 @@ export class TranslationsService {
           field: fieldNameCol ? String(row[fieldNameCol]) : columnName,
           value: translatedTexts[index] ?? '',
           identifier: String(row[identifierCol]),
+          page: this.normalizePage(row.page),
         }),
       );
 
       if (toSave.length > 0) {
         await this.clienteTranslationRepository.upsert(toSave, {
-          conflictPaths: ['table_name', 'lang', 'field', 'identifier'],
+          conflictPaths: [...TRANSLATION_CONFLICT_PATHS],
           skipUpdateIfNoValuesChanged: true,
         });
       }
@@ -323,6 +336,7 @@ export class TranslationsService {
     lang: string,
     identifierCol: string,
     fieldNameCol?: string,
+    pageSource?: string,
   ): Promise<Record<string, any>[]> {
     const whereCondition: Record<string, any> = { table_name: fullTableName, lang };
 
@@ -331,37 +345,124 @@ export class TranslationsService {
     }
 
     const translatedRecords = await this.clienteTranslationRepository.find({
-      select: ['identifier'],
+      select: ['identifier', 'field', 'page'],
       where: whereCondition,
     });
 
-    const translatedIds = translatedRecords.map((r) => String(r.identifier));
-    const translatedIdSet = new Set(translatedIds);
-
-    const selectCols = [identifierCol, columnName];
-    if (fieldNameCol && !selectCols.includes(fieldNameCol)) {
-      selectCols.push(fieldNameCol);
-    }
-
-    const allRows = await this.mysqlService.query<Record<string, any>>(
-      `SELECT ${selectCols.join(', ')}
-       FROM ${fullTableName}
-       WHERE ${columnName} IS NOT NULL
-         AND ${columnName} != ''
-       ORDER BY ${identifierCol}`,
+    const translatedKeySet = new Set(
+      translatedRecords.map(
+        (r) =>
+          `${String(r.identifier)}::${String(r.field)}::${this.normalizePage(r.page)}`,
+      ),
     );
 
-    if (translatedIds.length === 0) {
+    const allRows = await this.querySourceRows(
+      fullTableName,
+      columnName,
+      identifierCol,
+      fieldNameCol,
+      pageSource,
+    );
+
+    if (translatedKeySet.size === 0) {
       return allRows;
     }
 
-    return allRows.filter((row) => !translatedIdSet.has(String(row[identifierCol])));
+    return allRows.filter((row) => {
+      const field = fieldNameCol ? String(row[fieldNameCol]) : columnName;
+      const page = this.normalizePage(row.page);
+      const key = `${String(row[identifierCol])}::${field}::${page}`;
+      return !translatedKeySet.has(key);
+    });
   }
 
-  async getTranslationsByTableName(tableName: string, lang: string, fields: string[]) {
-    return await this.clienteTranslationRepository.find({
-      where: { table_name: tableName, lang, field: In(fields) },
-    });
+  private async querySourceRows(
+    fullTableName: string,
+    columnName: string,
+    identifierCol: string,
+    fieldNameCol?: string,
+    pageSource?: string,
+  ): Promise<Record<string, any>[]> {
+    const parsedPageSource = this.parsePageSource(pageSource);
+    const selectCols = [`t.\`${identifierCol}\` AS \`${identifierCol}\``, `t.\`${columnName}\` AS \`${columnName}\``];
+
+    if (fieldNameCol && fieldNameCol !== identifierCol && fieldNameCol !== columnName) {
+      selectCols.push(`t.\`${fieldNameCol}\` AS \`${fieldNameCol}\``);
+    }
+
+    if (parsedPageSource?.joinTable) {
+      const joinFullTable = `${envs.DB_PREFIX}${parsedPageSource.joinTable}`;
+      selectCols.push(
+        `COALESCE(p.\`${parsedPageSource.column}\`, '') AS \`page\``,
+      );
+
+      return this.mysqlService.query<Record<string, any>>(
+        `SELECT ${selectCols.join(', ')}
+         FROM \`${fullTableName}\` t
+         LEFT JOIN \`${joinFullTable}\` p ON t.\`idback\` = p.\`id\`
+         WHERE t.\`${columnName}\` IS NOT NULL
+           AND t.\`${columnName}\` != ''
+         ORDER BY t.\`${identifierCol}\``,
+      );
+    }
+
+    if (parsedPageSource?.column) {
+      selectCols.push(
+        `COALESCE(t.\`${parsedPageSource.column}\`, '') AS \`page\``,
+      );
+    } else {
+      selectCols.push(`'' AS \`page\``);
+    }
+
+    return this.mysqlService.query<Record<string, any>>(
+      `SELECT ${selectCols.join(', ')}
+       FROM \`${fullTableName}\` t
+       WHERE t.\`${columnName}\` IS NOT NULL
+         AND t.\`${columnName}\` != ''
+       ORDER BY t.\`${identifierCol}\``,
+    );
+  }
+
+  async getTranslationsByTableName(
+    tableName: string,
+    lang: string,
+    fields: string[],
+    page?: string,
+  ) {
+    const where: Record<string, any> = {
+      table_name: tableName,
+      lang,
+      field: In(fields),
+    };
+
+    if (page !== undefined) {
+      where.page = this.normalizePage(page);
+    }
+
+    return await this.clienteTranslationRepository.find({ where });
+  }
+
+  private parsePageSource(
+    pageSource?: string | null,
+  ): { joinTable?: string; column: string } | null {
+    const trimmed = pageSource?.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parts = trimmed.split('.');
+    if (parts.length === 2) {
+      return { joinTable: parts[0], column: parts[1] };
+    }
+
+    return { column: parts[0] };
+  }
+
+  private normalizePage(page: unknown): string {
+    if (page === null || page === undefined) {
+      return '';
+    }
+    return String(page);
   }
 
   private getCharLimit(): number {

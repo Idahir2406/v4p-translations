@@ -88,9 +88,10 @@ export class TranslationEventsService {
               field: event.field,
               value: translatedText,
               identifier: event.identifier,
+              page: this.normalizePage(event.page),
             },
             {
-              conflictPaths: ['table_name', 'lang', 'field', 'identifier'],
+              conflictPaths: ['table_name', 'lang', 'field', 'identifier', 'page'],
               skipUpdateIfNoValuesChanged: true,
             },
           );
@@ -98,12 +99,22 @@ export class TranslationEventsService {
           translatedRows += 1;
         }
 
-        event.status = 'processed';
-        await this.translationEventRepository.save(event);
+        const processed = await this.translationEventRepository.preload({
+          id: event.id,
+          status: 'processed',
+        });
+        if (processed) {
+          await this.translationEventRepository.save(processed);
+        }
         processedEvents += 1;
       } catch (error) {
-        event.status = 'error';
-        await this.translationEventRepository.save(event);
+        const errored = await this.translationEventRepository.preload({
+          id: event.id,
+          status: 'error',
+        });
+        if (errored) {
+          await this.translationEventRepository.save(errored);
+        }
         errors += 1;
         const message = error instanceof Error ? error.message : 'Error desconocido';
         this.logger.error(`Error procesando evento ${event.id}: ${message}`);
@@ -137,5 +148,12 @@ export class TranslationEventsService {
     });
 
     return response.choices[0]?.message?.content?.trim() ?? normalizedText;
+  }
+
+  private normalizePage(page: unknown): string {
+    if (page === null || page === undefined) {
+      return '';
+    }
+    return String(page);
   }
 }

@@ -3,6 +3,8 @@ export interface TableNameConfig {
   columns: string[];
   identifier?: string;
   field_name?: string;
+  /** Join source for page, e.g. 'variables0.pagina' via idback */
+  page_source?: string;
 }
 
 export const TABLE_NAMES: TableNameConfig[] = [
@@ -11,6 +13,7 @@ export const TABLE_NAMES: TableNameConfig[] = [
     columns: ['description_l1'],
     field_name: 'variable',
     identifier: 'id',
+    page_source: 'variables0.pagina',
   },
   {
     name: 'variables',

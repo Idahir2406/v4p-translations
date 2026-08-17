@@ -6,6 +6,7 @@ export interface TranslationTable {
   columns: string[];
   identifier: string | null;
   field_name: string | null;
+  page_source: string | null;
 }
 
 export interface CreateTranslationTablePayload {
@@ -13,6 +14,7 @@ export interface CreateTranslationTablePayload {
   columns: string[];
   identifier?: string;
   field_name?: string;
+  page_source?: string;
 }
 
 export interface UpdateTranslationTablePayload {
@@ -20,6 +22,7 @@ export interface UpdateTranslationTablePayload {
   columns?: string[];
   identifier?: string;
   field_name?: string;
+  page_source?: string;
 }
 
 const BASE = "/translation-tables";

@@ -75,6 +75,9 @@ export const TranslationsTable = () => {
                   <TableHead className="bg-accent text-accent-foreground font-semibold">
                     Field Name
                   </TableHead>
+                  <TableHead className="bg-accent text-accent-foreground font-semibold">
+                    Page Source
+                  </TableHead>
                   <TableHead className="bg-accent text-accent-foreground w-24 text-center font-semibold">
                     Acciones
                   </TableHead>
@@ -105,6 +108,9 @@ export const TranslationsTable = () => {
                     <TableCell className="text-muted-foreground">
                       {table.field_name ?? "—"}
                     </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {table.page_source ?? "—"}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
                         <EditDialog table={table} />
@@ -116,7 +122,7 @@ export const TranslationsTable = () => {
                 {data?.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="py-12 text-center text-muted-foreground"
                     >
                       No hay tablas configuradas

@@ -18,7 +18,7 @@ export class ManagerService {
   ) {}
 
   private getFullTableName(tableName: string): string {
-    return `${envs.DB_INITIAL}${tableName}`;
+    return `${envs.DB_PREFIX}${tableName}`;
   }
 
   async getFilterOptions(id: string) {
@@ -30,7 +30,7 @@ export class ManagerService {
 
     const fullTableName = this.getFullTableName(translationTable.table_name);
 
-    const [fieldsRaw, langsRaw, countRaw] = await Promise.all([
+    const [fieldsRaw, langsRaw, pagesRaw, countRaw] = await Promise.all([
       this.clienteTranslationRepository
         .createQueryBuilder("ct")
         .select("DISTINCT ct.field", "field")
@@ -45,6 +45,12 @@ export class ManagerService {
         .getRawMany<{ lang: string }>(),
       this.clienteTranslationRepository
         .createQueryBuilder("ct")
+        .select("DISTINCT ct.page", "page")
+        .where("ct.table_name = :tableName", { tableName: fullTableName })
+        .orderBy("ct.page", "ASC")
+        .getRawMany<{ page: string }>(),
+      this.clienteTranslationRepository
+        .createQueryBuilder("ct")
         .select("COUNT(*)", "total")
         .where("ct.table_name = :tableName", { tableName: fullTableName })
         .getRawOne<{ total: string }>(),
@@ -54,12 +60,13 @@ export class ManagerService {
       translationTable,
       fields: fieldsRaw.map((r) => r.field),
       langs: langsRaw.map((r) => r.lang),
+      pages: pagesRaw.map((r) => r.page ?? ""),
       totalTranslations: Number(countRaw?.total ?? 0),
     };
   }
 
   async getTranslations(dto: GetTranslationsDto) {
-    const { id, lang, field } = dto;
+    const { id, lang, field, page } = dto;
     const translationTable = await this.translationTableRepository.findOneBy({ id });
 
     if (!translationTable) {
@@ -80,10 +87,15 @@ export class ManagerService {
       query.andWhere("ct.field = :field", { field });
     }
 
+    if (page !== undefined) {
+      query.andWhere("ct.page = :page", { page: page ?? "" });
+    }
+
     query
       .orderBy("ct.identifier", "ASC")
       .addOrderBy("ct.field", "ASC")
-      .addOrderBy("ct.lang", "ASC");
+      .addOrderBy("ct.lang", "ASC")
+      .addOrderBy("ct.page", "ASC");
 
     const clienteTranslations = await query.getMany();
 
@@ -104,13 +116,15 @@ export class ManagerService {
   }
 
   async updateTranslation(id: number, dto: UpdateTranslationDto) {
-    const translation = await this.clienteTranslationRepository.findOneBy({ id });
+    const updated = await this.clienteTranslationRepository.preload({
+      id,
+      value: dto.value,
+    });
 
-    if (!translation) {
+    if (!updated) {
       throw new NotFoundException(`Traducción con id '${id}' no encontrada`);
     }
 
-    translation.value = dto.value;
-    return this.clienteTranslationRepository.save(translation);
+    return this.clienteTranslationRepository.save(updated);
   }
 }

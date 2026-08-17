@@ -1,7 +1,7 @@
 import { Column, Entity, PrimaryColumn } from "typeorm";
 import { envs } from "../../config/envs";
 
-@Entity(`${envs.DB_INITIAL}languages`)
+@Entity(`${envs.DB_PREFIX}languages`)
 export class Language {
   @PrimaryColumn({ unique: true, length: 10 })
   code: string;

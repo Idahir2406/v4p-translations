@@ -4,7 +4,7 @@ import { envs } from '../../config/envs';
 import { Favorites } from './favorites.entity';
 
 /** Mapea la tabla física existente (p. ej. `v4p_jsites1`). */
-@Entity(`${envs.DB_INITIAL}sites1`)
+@Entity(`${envs.DB_PREFIX}sites1`)
 export class Sites {
   @PrimaryGeneratedColumn()
   id: number;
