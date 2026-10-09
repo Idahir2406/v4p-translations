@@ -1,13 +1,9 @@
 
-
-import { config } from "dotenv";
 import { DataSource, DataSourceOptions } from "typeorm";
 import { envs } from "../config/envs";
 
-config();
-
 export const typeOrmConfig: DataSourceOptions = {
-  type: "mysql",
+  type: "mariadb",
   entities: [__dirname + "/../**/*.entity{.ts,.js}"],
   port: envs.DB_PORT,
   synchronize: false,

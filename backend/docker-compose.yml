@@ -7,12 +7,12 @@ services:
       - .env
     environment:
       NODE_ENV: production
-      PORT: 4000
-      # Dentro del contenedor, localhost es el propio contenedor.
-      # host.docker.internal apunta al Mac donde corre XAMPP/MySQL.
-      DB_HOST: host.docker.internal
+      PORT: ${PORT:-4000}
+    # DB_HOST y el resto de credenciales salen solo de .env (no sobrescribir aquí).
+    # Local con MySQL en el Mac (XAMPP): DB_HOST=host.docker.internal en .env
+    # Servidor / remoto: DB_HOST=209.42.192.140 (o el host que toque)
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "4000:4000"
+      - "${PORT:-4000}:${PORT:-4000}"
     restart: unless-stopped
