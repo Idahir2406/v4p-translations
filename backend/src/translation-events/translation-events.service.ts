@@ -37,7 +37,7 @@ export class TranslationEventsService {
     return events;
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_10_MINUTES)
   async processPendingEvents(limit = 100) {
     if (envs.ENVIRONMENT === 'development') {
       return;
@@ -154,6 +154,6 @@ export class TranslationEventsService {
     if (page === null || page === undefined) {
       return '';
     }
-    return String(page);
+    return page as string;
   }
 }
